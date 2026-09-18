@@ -1,0 +1,13 @@
+"0","#| label: Task1
+
+
+
+# Your code goes here.
+
+tornado<-read_csv('noaa_stormevent_tornado_2026_08.csv')
+"
+"1","[1m[33mError[39m:[22m
+[38;5;232m[33m![38;5;232m ]8;;file://C:/Users/dj98x/Documents/GitHub/geog4300_lab0/noaa_stormevent_tornado_2026_08.csv[34mnoaa_stormevent_tornado_2026_08.csv[38;5;232m]8;; does not exist in current working directory:
+  ]8;;file://C:/Users/dj98x/Documents/GitHub/geog4300_lab0[34mC:/Users/dj98x/Documents/GitHub/geog4300_lab0[38;5;232m]8;;.[39m
+[90mRun `]8;;x-r-run:rlang::last_trace()rlang::last_trace()]8;;` to see where the error occurred.[39m
+"

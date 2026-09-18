@@ -1,0 +1,188 @@
+---
+title: "Visualizing central tendency and distribution"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+Most visualizations in ggplot focus on ways of visualizing the shape of distributions, but there's a few ways we can also look at central tendency. Let's visualize data from the county census data. 
+
+We're using two common packages for spatial data: `sf` and `tmap`. The `sf` package manages spatial datasets, while `tmap` provides tools for creating maps.
+
+```{r}
+#install.packages("sf")
+#install.packages("tmap")
+library(tidyverse)
+library(sf)
+library(tmap)
+
+census_data<-read_csv("data/ACSCtyData_2022ACS.csv")
+
+#Read directly from Github
+#census_data<-read_csv("https://github.com/jshannon75/geog4300/raw/refs/heads/master/data/ACSCtyData_2022ACS.csv")
+
+census_data_geo<-st_read("data/ACSCtyData_2022ACS_simplify.gpkg") %>%
+  filter(gisjn_st=="G13")
+```
+
+What if we want to compare the mean and median percentage of residents without internet access across states? First, we should calculate these using group_by and summarise.
+
+```{r}
+census_int<-census_data %>%
+  group_by(st_name) %>%
+  summarise(intnet_none_mean=mean(intnet_none_pct),
+            intnet_none_med=median(intnet_none_pct))
+```
+
+We can then use pivot_longer to place the mean and median values into a single column and then visualize them with a dot plot.
+
+```{r}
+census_int_plot<-census_int %>%
+  pivot_longer(intnet_none_mean:intnet_none_med,
+               names_to="var",
+               values_to="value")
+
+ggplot(census_int_plot,aes(x=value,y=st_name,color=var))+
+    geom_point()
+```
+
+The states are currently displayed alphabetically, making comparisons difficult. Let's use `reorder` to sort by the mean rate of no internet access. We'll also draw from the ColorBrewer palette. (https://www.datanovia.com/en/blog/the-a-z-of-rcolorbrewer-palette/) Lastly, we'll tweak the axis labels.
+
+```{r}
+census_int_plot<-census_int %>%
+  mutate(st_name=reorder(st_name,intnet_none_mean)) %>%
+  pivot_longer(intnet_none_mean:intnet_none_med,
+               names_to="var",
+               values_to="value")
+
+ggplot(census_int_plot,aes(x=value,y=st_name,color=var))+
+  geom_point()+
+  scale_colour_brewer("Variable",palette="Dark2",labels=c("Mean","Median"))+ #Change the colors
+  xlab("% of population") + #X axis label
+  ylab("") #Y axis label
+```
+
+Boxplots are a very common way to visualize distributions, showing the median, quartiles, and outliers. Let's visualize that "no internet" variable for the Midwest. We'll also rotate the axis labels slightly to make them easier to read.
+
+```{r}
+census_midwest<-census_data %>%
+  filter(region=="MW")
+
+ggplot(census_midwest,aes(x=st_name,y=intnet_none_pct))+
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+You can also add individual observations to a boxplot using `geom_jitter`.
+```{r}
+ggplot(census_midwest,
+       aes(x = st_name,
+           y = intnet_none_pct)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.4) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+##You try it!
+Create a boxplot for Midwest states with another census variable of your choosing.
+
+```{r}
+
+```
+
+
+Histograms are also common. Here we can use `facet_wrap` by state. `Facet_wrap` is a nifty function that allows you to make small multiples charts--a set of charts broken up by some categorical variable (such as state).
+
+```{r}
+ggplot(census_midwest,aes(x=intnet_none_pct))+
+  geom_histogram()+
+  facet_wrap(~st_name)
+```
+
+Ridge plots are another strategy for visualizing smoothed density distributions. We'll also use the viridis package for fill, which brings in MatLab colors.
+
+```{r}
+#install.packages("ggridges")
+library(ggridges)
+library(viridis)
+
+ggplot(census_midwest,aes(x=intnet_none_pct,y=st_name))+
+  geom_density_ridges()
+
+#Scale zooms them
+ggplot(census_midwest,aes(x=intnet_none_pct,y=st_name))+
+  geom_density_ridges(scale=3)
+
+ggplot(census_midwest,aes(x=intnet_none_pct,y=st_name,fill=after_stat(x)))+
+  geom_density_ridges_gradient()+
+  scale_fill_viridis()
+```
+
+Lastly, a beeswarm diagram provides another alternative to boxplots, somewhat like a sideways density plot. For more info, see https://github.com/eclarke/ggbeeswarm
+
+```{r}
+#install.packages("ggbeeswarm")
+library(ggbeeswarm)
+
+ggplot(census_midwest,aes(x=st_name,y=intnet_none_pct))+
+  geom_quasirandom()
+
+ggplot(census_midwest,aes(x=st_name,y=intnet_none_pct))+
+  geom_quasirandom(method="smiley")
+
+ggplot(census_midwest,aes(x=st_name,y=intnet_none_pct))+
+  geom_beeswarm(size=0.5)
+```
+
+##You try it!
+Create a distribution graph for the percent classified as Latinx/Hispanic variable (`hisp_pop_pct`) using a geom of your choosing.
+
+```{r}
+
+```
+
+Lastly, we can visualize the *spatial* distribution for these data using a choropleth map. We'll talk more about the sf and tmap packages later in the course, but tmap provides a way to quickly map out spatial data. Here's an example, including some parameters that put the legend at the bottom of the map.
+
+```{r}
+tm_shape(census_data_geo)+
+  tm_polygons("intnet_none_pct") +
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = "bottom",)
+```
+
+We can use the style parameter to classify data differently. Here's natural breaks (jenks), quantile, and equal interval. The `tmap_arrange` at the end of this code chunk creates a combined version with all three maps.
+
+```{r}
+map1<-tm_shape(census_data_geo)+
+  tm_polygons("intnet_none_pct",
+              fill.scale = tm_scale_intervals(style = "jenks")) +
+  tm_layout(legend.outside.position = "bottom",
+            legend.outside = TRUE)
+map1
+
+map2<-tm_shape(census_data_geo)+
+  tm_polygons("intnet_none_pct",
+              fill.scale = tm_scale_intervals(style = "quantile")) +
+  tm_layout(legend.outside.position = "bottom",
+            legend.outside = TRUE)
+map2
+
+map3<-tm_shape(census_data_geo)+
+  tm_polygons("intnet_none_pct",
+              fill.scale = tm_scale_intervals(style = "equal")) +
+  tm_layout(legend.outside.position = "bottom",
+            legend.outside = TRUE)
+map3
+
+tmap_arrange(map1,map2,map3)
+```
+
+
+##You try it!
+Visualize the distribution of one other variable of your choosing in Georgia, using an appropriate classification scheme.
+
+```{r}
+
+```
+
