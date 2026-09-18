@@ -12,7 +12,7 @@ execute:
 library(tidyverse)
 ```
 
-*Your name: {Your name here}*
+*Your name: {David Jean}*
 
 This "lab" assignment provides an opportunity to learn the basic mechanics of Github classroom, loading data, and doing some basic data manipulation using the tools in the tidyverse. Through this lab, you will identify counties with the highest levels of social vulnerability that also had high numbers of severe tornadoes (rated F3 and higher) during this study period.
 
@@ -37,12 +37,19 @@ You can load the tornado data (`noaa_stormevent_tornado_2026_08.csv` in the fold
 ```{r}
 #| label: Task1
 
-# Your code goes here.
+tornadoes<-read_csv('data/stormevents/noaa_stormevent_tornado_2026_08.csv')
+
+svi <- read_csv("data/SVI_2022_US_county.csv")
+
 ```
 
 **Task 2:** *Pick two variables from either dataset that use different levels of measurement (nominal, ordinal, interval or ratio). Explain which level best describes each variable and why. Also identify one variable that would be more efficiently read as a factor, and explain why.*
 
-{Your explanation goes here.}
+{Ordinal: MONTH_NAME
+this variable is ordinal because months have an order but are not measurements
+
+Ratio: TOR_WIDTH
+this variable is a ratio because it has a true zero and widths scale relatively and linearly (ex: a width of 10 feet is half as big as a 20 foot width)}
 
 ## Filtering and/or summarizing the data
 
@@ -61,7 +68,12 @@ To do so, you'll need to:
 ```{r}
 #| label: Task3
 
-# Your code goes here.
+F3orMore <- tornadoes %>%
+  filter(TOR_F_SCALE %in% c("F3", "F4", "F5")) %>%
+  group_by(STATE_FIPS, STATE, cty_fips, CZ_NAME) %>%
+  summarise(number_of_tornadoes = n())
+
+  
 ```
 
 You also want to filter the social vulnerability data so that it only includes counties with a population over 25,000 people. This allows us to only track counties with a moderate or large population. Use the SVI Documentation pdf in the data folder to determine which variable this is, recognizing that you want the **estimate** and not the margin of error (MOE).
@@ -73,7 +85,11 @@ Filter the data below.
 ```{r}
 #| label: Task4
 
-# Your code goes here.
+
+svi25000orMore <- svi %>%
+  filter(E_TOTPOP >= 25000)
+  
+
 ```
 
 Let's add one more filter based on social vulnerability. When you look at the documentation there are a number of "dummy" variables (0/1) that flag counties that are at or above the 90th percentile for a number of factors. For example, `F_DISABL` flags counties in the top 10% for percentage of persons with a disability. There are also cumulative flags: `F_THEME2` sums all the flagged variables within the "Household Characteristics" category.
@@ -87,7 +103,11 @@ Filter the dataset you created in Task 4 so that it only includes counties you a
 ```{r}
 #| label: Task5
 
-# Your code goes here.
+svi_social_vulnerability <- svi25000orMore %>%
+  filter(F_DISABL == 1)
+
+
+
 ```
 
 Describe your variable, why you chose it, and (if applicable) why you chose the cutoff you did.
@@ -99,8 +119,9 @@ Next you'll need to join these tornado counts to SVI population data using the `
 **NOTE:** You may need to change the name of the population data below to match the object you used for the SVI data.
 
 ```{r}
-svi <- svi %>%
+svi_social_vulnerability <- svi_social_vulnerability %>%
   rename(cty_fips = FIPS)
+  combined_data <- inner_join(svi_social_vulnerability, F3orMore, by = "cty_fips")
 ```
 
 Call the function above to rename your data. Now you're ready to join the data.
@@ -110,20 +131,33 @@ Call the function above to rename your data. Now you're ready to join the data.
 ```{r}
 #| label: Task6
 
-# Your code goes here.
+combined_data <- inner_join(svi_social_vulnerability, F3orMore, by = "cty_fips")
+
+
 ```
 
 **Task 7:** *Find some documentation on the `inner_join()` function online or using help in R. Describe how it works, and explain how the results would have been different if you used `full_join()` instead.*
 
-{Write your response here.}
+{inner_join() combines two datasets to a matching variable. This is done by keeping only that which matches between both datasets. The results would have been different if I had used full_join() because every row would be in it, all variables between both datasets would still be present.}
 
 ## Answering your research question
 
 **Task 8:** *Open up your joined dataset. Which three vulnerable counties have the highest number of severe tornadoes and how many were in each? Are there cities or other notable geographic features located in these counties?*
 
-{Write your response here.}
+{```{R}
+names(combined_data)
 
-## Challenge question
+combined_data %>%
+  arrange(desc(number_of_tornadoes)) %>%
+  select(STATE.x, COUNTY, number_of_tornadoes) %>%
+  head(3)
+```
+Walker County, Alabama (8 severe tornadoes); Sequoyah County, Oklahoma (8 severe tornadoes); Marion County, Alabama (5 severe tornadoes)
+
+Walker County has Jasper, Alabama and a National Forest. Sequoyah County has Sallisaw, Oklahoma, and the Illinois River. Marion County has four cities: Hamilton, Guin, Winfield, and Hackleberg.
+}
+
+## Challenge question 
 
 Find a peer-reviewed article published in the last ten years that uses this NWS/NOAA tornado dataset. What research question was it trying to answer? What methods were used? What are the most notable findings? Give the full citation and a summary of at least 100 words below.
 
@@ -133,10 +167,10 @@ Write your response here.
 
 **Disclosure of assistance:** Besides class materials, what other sources of assistance did you use while completing this lab? These can include input from classmates, relevant material identified through web searches (e.g., Stack Overflow), or assistance from ChatGPT or other AI tools. How did these sources support your own learning in completing this lab?
 
-Write your response here.
+I used ChatGPT and Google searches to assist in my answering of these tasks. They helped by explaining how I could do this work myself, through instructional content framed as a worksheet of sorts for this worksheet.
 
 **Lab reflection:** How do you feel about the work you did on this lab? Was it easy, moderate, or hard? What are the biggest things you learned by completing it?
 
-Write your response here.
+It was easy, but I had several roadblocks in regards to illnesses and family medical issues which caused this to be later than I would have liked. This should not be a problem going forward. I feel as though I am now much more familiar with the logic and construction of R, at least for the commands and functions which this assignment covered.
 
 That's it! When you're done with this lab, use the Render command in Quarto to create a GitHub markdown document. Then push it to GitHub using the procedure outlined in this week's videos.
